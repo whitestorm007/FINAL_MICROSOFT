@@ -1,0 +1,32 @@
+{
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@react-native-community/cli-server-api": "^19.0.0",
+    "axios": "^1.12.2",
+    "axios-cookiejar-support": "^6.0.4",
+    "cheerio": "^1.0.0-rc.12",
+    "crypto": "^1.0.1",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
+    "debug": "^4.4.3",
+    "dotenv": "^17.2.3",
+    "google-trends-api": "^4.9.2",
+    "header-generator": "^2.1.75",
+    "mongoose": "^8.19.1",
+    "node-cron": "^4.2.1",
+    "node-random-name": "^1.0.1",
+    "tough-cookie": "^5.1.2",
+    "url": "^0.11.4"
+  },
+  "name": "grind-search-(1)",
+  "version": "1.0.0",
+  "description": "",
+  "main": "gemini.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

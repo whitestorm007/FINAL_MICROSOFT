@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft Account Tester</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            
+            max-width: 1000px;
+        }
+        .card {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border: none;
+            border-radius: 15px;
+        }
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 20px;
+        }
+        .result-box {
+            background-color: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            word-wrap: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .copy-btn {
+            transition: all 0.3s ease;
+        }
+        .copy-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .domain-badge {
+            background-color: #e7f3ff;
+            color: #004085;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            margin: 5px 5px 5px 0;
+            display: inline-block;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .domain-badge:hover {
+            background-color: #004085;
+            color: white;
+        }
+        textarea {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0">🍪 Cookie Extractor by Domain</h3>
+                <p class="mb-0 mt-2">Paste your cookie JSON and extract cookies for a specific domain</p>
+            </div>
+            <div class="card-body p-4">
+                <!-- JSON Input -->
+                <div class="mb-4">
+                    <label for="jsonInput" class="form-label fw-bold">1. Paste Cookie JSON</label>
+                    <textarea class="form-control" id="jsonInput" rows="8" placeholder='Paste your cookie JSON here (e.g., {"cookies":{"cookies":[...]}})'></textarea>
+                    <small class="text-muted">Paste the entire cookie JSON object</small>
+                </div>
+
+                <!-- Parse Button -->
+                <div class="mb-4">
+                    <button class="btn btn-primary btn-lg w-100" id="parseBtn">
+                        📋 Parse JSON & Show Domains
+                    </button>
+                </div>
+
+                <!-- Available Domains -->
+                <div id="domainsSection" class="mb-4" style="display: none;">
+                    <label class="form-label fw-bold">Available Domains (click to select):</label>
+                    <div id="domainsList" class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;"></div>
+                </div>
+
+                <!-- Domain Input -->
+                <div class="mb-4">
+                    <label for="domainInput" class="form-label fw-bold">2. Enter Domain</label>
+                    <input type="text" class="form-control form-control-lg" id="domainInput" placeholder="e.g., login.live.com">
+                    <small class="text-muted">Enter or select the domain you want to extract cookies for</small>
+                </div>
+
+                <!-- Extract Buttons -->
+                <div class="mb-4">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <button class="btn btn-success btn-lg w-100" id="extractBtn" disabled>
+                                🔍 Extract Cookies
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-primary btn-lg w-100" id="copyFunctionBtn" disabled>
+                                📦 Copy Function with Cookies
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div id="resultsSection" style="display: none;">
+                    <label class="form-label fw-bold">Extracted Cookies:</label>
+                    <div class="result-box" id="resultBox"></div>
+                    <div class="mt-3 d-flex gap-2">
+                        <button class="btn btn-success copy-btn flex-grow-1" id="copyBtn">
+                            📋 Copy to Clipboard
+                        </button>
+                        <button class="btn btn-outline-secondary" id="clearBtn">
+                            ❌ Clear
+                        </button>
+                    </div>
+                    <div id="copyAlert" class="alert alert-success mt-3" style="display: none;">
+                        ✅ Cookies copied to clipboard!
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let cookieData = null;
+        let allDomains = new Set();
+
+        const jsonInput = document.getElementById('jsonInput');
+        const parseBtn = document.getElementById('parseBtn');
+        const domainInput = document.getElementById('domainInput');
+        const extractBtn = document.getElementById('extractBtn');
+        const copyFunctionBtn = document.getElementById('copyFunctionBtn');
+        const resultBox = document.getElementById('resultBox');
+        const resultsSection = document.getElementById('resultsSection');
+        const copyBtn = document.getElementById('copyBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const copyAlert = document.getElementById('copyAlert');
+        const domainsSection = document.getElementById('domainsSection');
+        const domainsList = document.getElementById('domainsList');
+
+        parseBtn.addEventListener('click', () => {
+            const jsonText = jsonInput.value.trim();
+            
+            if (!jsonText) {
+                alert('Please paste the cookie JSON first');
+                return;
+            }
+
+            try {
+                cookieData = JSON.parse(jsonText);
+                
+                // Extract all unique domains
+                allDomains.clear();
+                if (cookieData.cookies && cookieData.cookies.cookies) {
+                    cookieData.cookies.cookies.forEach(cookie => {
+                        if (cookie.domain) {
+                            allDomains.add(cookie.domain);
+                        }
+                    });
+                }
+                
+                // Display domains
+                displayDomains();
+                
+                extractBtn.disabled = false;
+                copyFunctionBtn.disabled = false;
+                resultsSection.style.display = 'none';
+                
+                // Show success message
+                showTempAlert(`✅ JSON parsed successfully! Found ${allDomains.size} unique domains.`, 'success');
+            } catch (error) {
+                showTempAlert('❌ Error parsing JSON. Please make sure it\'s valid JSON format.', 'danger');
+                extractBtn.disabled = true;
+                copyFunctionBtn.disabled = true;
+                domainsSection.style.display = 'none';
+            }
+        });
+
+        function displayDomains() {
+            domainsList.innerHTML = '';
+            if (allDomains.size > 0) {
+                domainsSection.style.display = 'block';
+                const sortedDomains = Array.from(allDomains).sort();
+                sortedDomains.forEach(domain => {
+                    const badge = document.createElement('span');
+                    badge.className = 'domain-badge';
+                    badge.textContent = domain;
+                    badge.onclick = () => {
+                        domainInput.value = domain;
+                        domainInput.focus();
+                    };
+                    domainsList.appendChild(badge);
+                });
+            } else {
+                domainsSection.style.display = 'none';
+            }
+        }
+
+        extractBtn.addEventListener('click', () => {
+            const domain = domainInput.value.trim();
+            
+            if (!domain) {
+                alert('Please enter a domain');
+                return;
+            }
+
+            if (!cookieData) {
+                alert('Please parse the JSON first');
+                return;
+            }
+
+            try {
+                const cookies = extractCookiesForDomain(domain);
+                
+                if (cookies.length === 0) {
+                    resultBox.textContent = `No cookies found for domain: ${domain}`;
+                    resultBox.style.color = '#dc3545';
+                    resultsSection.style.display = 'block';
+                    return;
+                }
+
+                const cookieString = cookies.map(c => `${c.key}=${c.value}`).join('; ');
+                resultBox.textContent = cookieString;
+                resultBox.style.color = '#000';
+                resultsSection.style.display = 'block';
+                copyAlert.style.display = 'none';
+            } catch (error) {
+                alert('Error extracting cookies: ' + error.message);
+            }
+        });
+
+        function extractCookiesForDomain(targetDomain) {
+            const cookies = [];
+            
+            if (cookieData.cookies && cookieData.cookies.cookies) {
+                cookieData.cookies.cookies.forEach(cookie => {
+                    // Exact match or subdomain match
+                    if (cookie.domain === targetDomain || 
+                        cookie.domain === '.' + targetDomain ||
+                        (cookie.domain.startsWith('.') && targetDomain.endsWith(cookie.domain.substring(1)))) {
+                        cookies.push({
+                            key: cookie.key,
+                            value: cookie.value
+                        });
+                    }
+                });
+            }
+            
+            return cookies;
+        }
+
+        copyBtn.addEventListener('click', () => {
+            const text = resultBox.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                copyAlert.style.display = 'block';
+                setTimeout(() => {
+                    copyAlert.style.display = 'none';
+                }, 2000);
+            });
+        });
+
+        copyFunctionBtn.addEventListener('click', () => {
+            const domain = domainInput.value.trim();
+            
+            if (!domain) {
+                alert('Please enter a domain');
+                return;
+            }
+
+            if (!cookieData) {
+                alert('Please parse the JSON first');
+                return;
+            }
+
+            try {
+                const cookies = extractCookiesForDomain(domain);
+                
+                if (cookies.length === 0) {
+                    alert(`No cookies found for domain: ${domain}`);
+                    return;
+                }
+
+                const cookieString = cookies.map(c => `${c.key}=${c.value}`).join('; ');
+                
+                const functionCode = `function setMultipleCookies(cookieString, daysToExpire) {
+  const cookies = cookieString.split(';');
+  const expirationDate = new Date();
+  expirationDate.setTime(expirationDate.getTime() + (daysToExpire * 24 * 60 * 60 * 1000));
+  const expires = "expires=" + expirationDate.toUTCString();
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=');
+    document.cookie = name + "=" + value + ";" + expires + ";path=/";
+  }
+}
+
+// Cookies extracted for domain: ${domain}
+const cookieString = "${cookieString.replace(/"/g, '\\"')}";
+
+// Set cookies with 30 days expiration
+setMultipleCookies(cookieString, 30);
+
+console.log("Cookies set successfully for domain: ${domain}");`;
+
+                navigator.clipboard.writeText(functionCode).then(() => {
+                    showTempAlert('✅ Function with cookies copied to clipboard!', 'success');
+                });
+            } catch (error) {
+                alert('Error generating function: ' + error.message);
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            domainInput.value = '';
+            resultBox.textContent = '';
+            resultsSection.style.display = 'none';
+            copyAlert.style.display = 'none';
+        });
+
+        function showTempAlert(message, type) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} mt-2`;
+            alert.textContent = message;
+            parseBtn.parentElement.appendChild(alert);
+            setTimeout(() => alert.remove(), 3000);
+        }
+
+        // Enable extract buttons when domain is entered
+        domainInput.addEventListener('input', () => {
+            if (cookieData && domainInput.value.trim()) {
+                extractBtn.disabled = false;
+                copyFunctionBtn.disabled = false;
+            }
+        });
+
+        // Allow pressing Enter in domain input
+        domainInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !extractBtn.disabled) {
+                extractBtn.click();
+            }
+        });
+    </script>
+</body>
+</html>
